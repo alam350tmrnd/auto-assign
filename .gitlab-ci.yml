@@ -1,0 +1,9 @@
+# Build Configuration for TMFORCE Java Application
+# Last update : 28/05/2024
+# Updated by : Alam (abdulsalam@tmrnd.com.my)
+# The configuration and build script is available in the tmforce-gitlab-ci project under the same branch name as this project.
+# --------------------------------------------
+include:
+  - project: 'tm-force/backend/tmforce-gitlab-ci'
+    ref: $CI_COMMIT_REF_NAME
+    file: '/java-app/.gitlab-ci.yml'

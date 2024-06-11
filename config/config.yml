@@ -1,0 +1,81 @@
+server:
+  adminMinThreads: 1
+  adminMaxThreads: 64
+  adminContextPath: /
+  shutdownGracePeriod: 3s
+  applicationContextPath: /
+  applicationConnectors:
+    - type: http
+      port: 80
+
+  adminConnectors:
+    - type: http
+      port: 4280
+  rootPath: /api/
+database:
+  # the name of your JDBC driver
+  driverClass: oracle.jdbc.OracleDriver
+  
+  # the username
+  user: ${TMF_MODEL_DB_USER}
+  
+  # the password
+  password: ${TMF_MODEL_DB_PASSWORD}
+  
+  # the JDBC URL
+  url: ${TMF_MODEL_DB_URL}
+
+  properties:
+    charSet: UTF-8
+    hibernate.id.new_generator_mappings: false
+  # the maximum amount of time to wait on an empty pool before throwing an exception
+  maxWaitForConnection: 30s
+
+  # the SQL query to run when validating a connection's liveness
+  validationQuery: "/* MyService Health Check */ SELECT 1 FROM DUAL"
+
+  # the timeout before a connection validation queries fail
+  validationQueryTimeout: 3s
+
+  # the minimum number of connections to keep open
+  minSize: 8
+
+  # the maximum number of connections to keep open
+  maxSize: 64
+
+  # whether or not idle connections should be validated
+  checkConnectionWhileIdle: true
+
+  # the amount of time to sleep between runs of the idle connection validation, abandoned cleaner and idle pool resizing
+  evictionInterval: 10s
+
+  # the minimum amount of time an connection must sit idle in the pool before it is eligible for eviction
+  minIdleTime: 25s
+
+  validationInterval: 30s
+
+  logAbandonedConnections: true
+
+  abandonWhenPercentageFull: 50
+
+logging:
+  # Root logger level
+  level: INFO
+  loggers:
+    # Package logger level
+    "my.com.tmrnd.tmforce": DEBUG
+    "my.com.tmrnd.tmforce.nff.assignment.db.facade": INFO
+    "org.hibernate.engine": ERROR
+  appenders:
+    # Log to stderr/netbeans output. Comment or remove this appenders if running in the server
+    - type: console
+      target: stderr
+      timeZone: Asia/Kuala_Lumpur
+      logFormat: "%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{5} [%thread] - %msg%n"
+    # Log to stderr/netbeans output  
+    - type: file
+      currentLogFilename: /app/logs/auto-assignment.log
+      archivedLogFilenamePattern: /app/logs/auto-assignment-%d.log.gz
+      archivedFileCount: 15
+      timeZone: Asia/Kuala_Lumpur
+      logFormat: "%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{5} [%thread] - %msg%n"
