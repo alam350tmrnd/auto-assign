@@ -62,7 +62,7 @@ public class AutoAssignZoneService implements ZoneService {
         String unacceptInterval = AssignmentSingleton.getUnacceptInterval();
         String maxPendingAccept = AssignmentSingleton.getMaxPendingAccept();
 
-        List<AtActivity> activityList = databaseService.getNffActivityListByZoneId(zoneId, appointmentInterval, unacceptInterval, maxPendingAccept);
+        List<AtActivity> activityList = databaseService.getNffCorrectiveActivityListByZoneId(zoneId, appointmentInterval, unacceptInterval, maxPendingAccept);
 
         if (activityList != null && !activityList.isEmpty()) {
 
