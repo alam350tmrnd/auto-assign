@@ -27,23 +27,24 @@ import org.slf4j.LoggerFactory;
  * @author R10249
  */
 public class ActivityService {
+
     private DatabaseService databaseService;
     private Logger log;
     private String activityId;
 
-    public ActivityService(DatabaseService databaseService,CoArea zone, String activityId) {
+    public ActivityService(DatabaseService databaseService, CoArea zone, String activityId) {
         this.databaseService = databaseService;
         this.activityId = activityId;
-                log = LoggerFactory.getLogger(getClass().getName() + " - "+activityId);
+        log = LoggerFactory.getLogger(getClass().getName() + " - " + activityId);
     }
-    
-     public void assignActivity(AtActivity atActivity) {
+
+    public void assignActivity(AtActivity atActivity) {
         log.info("Assigning activity..");
         AtTicket atTicket = atActivity.getTicketId();
         String activityId = atActivity.getActivityId();
-        
+
         DistanceService distanceService = new DistanceService(activityId);
-        
+
         boolean isAppointment = atActivity.getPlannedStart() != null;
 
         Date startWorkingHour = AssignmentSingleton.getStartWorkingHour();
@@ -55,22 +56,20 @@ public class ActivityService {
         Date time = isAppointment ? plannedStart : new Date();
 
         boolean isOfficeHour = true || time.after(startWorkingHour) && time.before(endWorkingHour);
-        
+
         boolean useDistance = distanceService.isTicketCoordinateOk(atTicket);
-        
 
         List<CoResources> resourceList = isOfficeHour ? databaseService.getNormalResourceList(activityId) : databaseService.getStandbyResourceList(activityId);
 
-        if(resourceList == null || resourceList.isEmpty()){
+        if (resourceList == null || resourceList.isEmpty()) {
             log.info("no resources found");
             return;
-        }else{
-            log.info("{} resources found",resourceList.size());
+        } else {
+            log.info("{} resources found", resourceList.size());
         }
-        
+
         List<Candidate> candidateList = new ArrayList<>();
-        
-       
+
         for (CoResources coResources : resourceList) {
             boolean isWorking = isAppointment && databaseService.checkResourceIsWorking(coResources.getIcNo(), plannedStart, plannedEnd);
             isWorking = isWorking || (!isAppointment && databaseService.checkResourceIsWorking(coResources.getIcNo(), time, endWorkingHour));
@@ -82,46 +81,46 @@ public class ActivityService {
                 candidate.setInHandCount(inHand);
                 Integer yesterdayInHand = databaseService.getYesterdayInHand(coResources.getIcNo());
                 candidate.setYesterdayInHandCount(yesterdayInHand);
-                
-                if(useDistance){
+
+                if (useDistance) {
                     Double distance = distanceService.getDistance(coResources, atTicket);
                     candidate.setDistance(distance);
                 }
-                log.info("{} added",candidate);
+                log.info("{} added", candidate);
                 candidateList.add(candidate);
             } else {
                 log.info("{} is on leave");
             }
         }
-        
+
         CandidateSorter sorter = new CandidateSorter();
-       
+
         candidateList = sorter.getLeastInHandCountList(candidateList);
-        
-        if(candidateList.size() == 1){
+
+        if (candidateList.size() == 1) {
             CoResources coResources = candidateList.get(0).getCoResources();
             assignResource(atActivity, coResources);
             return;
         }
-        
-        candidateList =  sorter.getLeastYesterdayCountList(candidateList);
-        
-        if(candidateList.size() == 1){
+
+        candidateList = sorter.getLeastYesterdayCountList(candidateList);
+
+        if (candidateList.size() == 1) {
             CoResources coResources = candidateList.get(0).getCoResources();
             assignResource(atActivity, coResources);
             return;
         }
-        
-        candidateList =  sorter.getLeastDistanceList(candidateList);
-        
-        if(candidateList.size() == 1){
+
+        candidateList = sorter.getLeastDistanceList(candidateList);
+
+        if (candidateList.size() == 1) {
             CoResources coResources = candidateList.get(0).getCoResources();
             assignResource(atActivity, coResources);
             return;
         }
-        
+
         Collections.shuffle(candidateList, new Random());
-        
+
         CoResources coResources = candidateList.get(0).getCoResources();
         assignResource(atActivity, coResources);
 
@@ -136,28 +135,25 @@ public class ActivityService {
         //not first task
         //distance
     }
-    
-    public boolean processPendingAccept(AtActivity atActivity){
+
+    public boolean processPendingAccept(AtActivity atActivity) {
         log.info("processPendingAccept");
-          String maxPendingAccept = AssignmentSingleton.getMaxPendingAccept();
-          String pendingAcceptCount = databaseService.getPendingAcceptCount(atActivity);
-          boolean assign = !maxPendingAccept.equals(pendingAcceptCount);
-          if(!assign){
-              databaseService.updatePendingAcceptMaxed(atActivity,"TRUE");
-          }
-          log.info("pending accept count = {},assign = {}",pendingAcceptCount+"/"+maxPendingAccept,assign);
-          CoResources assignTo = atActivity.getAssignTo();
-          
-          CoResources superVisor = databaseService.getImmediateBoss(assignTo.getIcNo());
-          
-          new MessagingService().sendTaskUnAcceptedMessageToSupervisor(superVisor, atActivity,pendingAcceptCount);
-          return assign;
-          
+        String maxPendingAccept = AssignmentSingleton.getMaxPendingAccept();
+        String pendingAcceptCount = databaseService.getPendingAcceptCount(atActivity);
+        boolean assign = !maxPendingAccept.equals(pendingAcceptCount);
+        if (!assign) {
+            databaseService.updatePendingAcceptMaxed(atActivity, "TRUE");
+        }
+        log.info("pending accept count = {},assign = {}", pendingAcceptCount + "/" + maxPendingAccept, assign);
+
+        new AutoAssignMessagingService().sendTaskUnAcceptedMessageToSupervisor(atActivity, pendingAcceptCount);
+        return assign;
+
     }
-    
-        public void assignResource(AtActivity atActivity,CoResources assignTo) {
-            log.info("assignResource({})",assignTo.getIcNo());
-         String activityId = atActivity.getActivityId();
+
+    public void assignResource(AtActivity atActivity, CoResources assignTo) {
+        log.info("assignResource({})", assignTo.getIcNo());
+        String activityId = atActivity.getActivityId();
         String ticketId = atActivity.getTicketId().getTicketId();
         String staffNo = assignTo.getStaffNo();
 
@@ -182,11 +178,10 @@ public class ActivityService {
         atStatusLog.setTicketId(ticketId);
         databaseService.insertAtStatusLog(atStatusLog);
         databaseService.updatePendingAcceptDateTime(atActivity);
-        databaseService.addPendingAcceptCount(atActivity,PENDING_ASSIGN.equals(oldActivityStatus));
-        databaseService.updatePendingAcceptMaxed(atActivity,"FALSE");
-        boolean isNotified = new MessagingService().sendTaskAcceptanceMessage(assignTo, atActivity);  
+        databaseService.addPendingAcceptCount(atActivity, PENDING_ASSIGN.equals(oldActivityStatus));
+        databaseService.updatePendingAcceptMaxed(atActivity, "FALSE");
+        boolean isNotified = new AutoAssignMessagingService().sendTaskAcceptanceMessage(assignTo, atActivity);
         log.info(activityId + " updated with status = " + pendingAcceptActivityStatus.getLovName());
     }
-    
-    
+
 }
