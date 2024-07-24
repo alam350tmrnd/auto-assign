@@ -2,24 +2,19 @@
  *  This software is the confidential and proprietary information
  *  of Telekom Research & Development Sdn. Bhd.
  */
-package my.com.tmrnd.tmforce.nff.assignment.auto.services;
+package my.com.tmrnd.tmforce.nff.assignment.auto.service;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.ws.rs.client.ClientBuilder;
 import my.com.tmrnd.tmforce.common.api.json.mobile_pusher.NotificationInfo;
-import my.com.tmrnd.tmforce.common.client.MobilePusherClient;
 import my.com.tmrnd.tmforce.common.db.entity.AtActivity;
-import my.com.tmrnd.tmforce.common.db.entity.CoResourceSessionLog;
 import my.com.tmrnd.tmforce.common.db.entity.CoResources;
-import my.com.tmrnd.tmforce.common.db.entity.CoUserDeviceStatusLog;
 import my.com.tmrnd.tmforce.common.db.entity.custom.FGetListOfSupervisor;
 import my.com.tmrnd.tmforce.nff.assignment.AssignmentSingleton;
-import my.com.tmrnd.tmforce.nff.assignment.db.DatabaseService;
-import my.com.tmrnd.tmforce.nff.assignment.messaging.MessagingService;
-import my.com.tmrnd.tmforce.nff.assignment.messaging.NotificationLevel;
-import my.com.tmrnd.tmforce.nff.assignment.messaging.Receipient;
+import my.com.tmrnd.tmforce.nff.assignment.service.messaging.MessagingService;
+import my.com.tmrnd.tmforce.nff.assignment.service.messaging.NotificationLevel;
+import my.com.tmrnd.tmforce.nff.assignment.service.messaging.Receipient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

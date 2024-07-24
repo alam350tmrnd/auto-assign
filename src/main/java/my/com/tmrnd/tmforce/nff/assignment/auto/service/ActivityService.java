@@ -2,7 +2,7 @@
  *  This software is the confidential and proprietary information
  *  of Telekom Research & Development Sdn. Bhd.
  */
-package my.com.tmrnd.tmforce.nff.assignment.auto.services;
+package my.com.tmrnd.tmforce.nff.assignment.auto.service;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -55,7 +55,7 @@ public class ActivityService {
 
         Date time = isAppointment ? plannedStart : new Date();
 
-        boolean isOfficeHour = true || time.after(startWorkingHour) && time.before(endWorkingHour);
+        boolean isOfficeHour = time.after(startWorkingHour) && time.before(endWorkingHour);
 
         boolean useDistance = distanceService.isTicketCoordinateOk(atTicket);
 

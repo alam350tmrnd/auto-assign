@@ -2,7 +2,7 @@
  *  This software is the confidential and proprietary information
  *  of Telekom Research & Development Sdn. Bhd.
  */
-package my.com.tmrnd.tmforce.nff.assignment.auto.services;
+package my.com.tmrnd.tmforce.nff.assignment.auto.service;
 
 import java.math.BigDecimal;
 import java.util.Date;
@@ -12,17 +12,17 @@ import my.com.tmrnd.tmforce.common.db.entity.AtTicket;
 import my.com.tmrnd.tmforce.common.db.entity.CoArea;
 import static my.com.tmrnd.tmforce.nff.assignment.AssignmentConstant.ACTIVITY_STATUS.PENDING_ACCEPT;
 import my.com.tmrnd.tmforce.nff.assignment.AssignmentSingleton;
-import my.com.tmrnd.tmforce.nff.assignment.ZoneService;
 import my.com.tmrnd.tmforce.nff.assignment.db.DatabaseService;
 import my.com.tmrnd.tmforce.nff.assignment.util.TimeUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import my.com.tmrnd.tmforce.nff.assignment.service.auto.AutoZoneService;
 
 /**
  *
  * @author Alam
  */
-public class AutoAssignZoneService implements ZoneService {
+public class AutoAssignZoneService implements AutoZoneService {
 
     DatabaseService databaseService;
     private Logger log;
@@ -66,13 +66,11 @@ public class AutoAssignZoneService implements ZoneService {
 
         if (activityList != null && !activityList.isEmpty()) {
 
-            log.debug("activityList found = " + activityList.size());
-
             for (AtActivity atActivity : activityList) {
                 printActivity(atActivity);
-
             }
-
+            log.info(":: activityList found = " + activityList.size());
+            
             for (AtActivity atActivity : activityList) {
 
                 String activityId = atActivity.getActivityId();
@@ -85,7 +83,6 @@ public class AutoAssignZoneService implements ZoneService {
                     assign = activityService.processPendingAccept(atActivity);
                 }
                 if (assign) {
-                    log.info(status);
                     activityService.assignActivity(atActivity);
                 }
             }

@@ -18,7 +18,7 @@ public class AutoAssignConfig extends DbConfiguration{
 
 
     
-    private static AutoAssignConfig preAssignConfig;
+    private static AutoAssignConfig config;
     
 
     /**
@@ -37,16 +37,16 @@ public class AutoAssignConfig extends DbConfiguration{
 
       
          /**
-     * @return the preAssignConfig
+     * @return the config
      */
-    public static AutoAssignConfig getPreAssignConfig() {
-        return preAssignConfig;
+    public static AutoAssignConfig getConfig() {
+        return config;
     }
 
     /**
-     * @param aComposerConfig the preAssignConfig to set
+     * @param aComposerConfig the config to set
      */
-    public static void setPreAssignConfig(AutoAssignConfig aComposerConfig) {
-        preAssignConfig = aComposerConfig;
+    public static void setConfig(AutoAssignConfig aComposerConfig) {
+        config = aComposerConfig;
     }    
 }

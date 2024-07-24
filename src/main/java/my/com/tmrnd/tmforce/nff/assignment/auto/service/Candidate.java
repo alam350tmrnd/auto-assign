@@ -2,7 +2,7 @@
  *  This software is the confidential and proprietary information
  *  of Telekom Research & Development Sdn. Bhd.
  */
-package my.com.tmrnd.tmforce.nff.assignment.auto.services;
+package my.com.tmrnd.tmforce.nff.assignment.auto.service;
 
 import my.com.tmrnd.tmforce.common.db.entity.CoResources;
 

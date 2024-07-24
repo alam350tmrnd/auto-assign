@@ -3,7 +3,7 @@
  *  of Telekom Research & Development Sdn. Bhd.
  */
 package my.com.tmrnd.tmforce.nff.assignment.auto;
-import my.com.tmrnd.tmforce.nff.assignment.auto.services.AutoAssignService;
+import my.com.tmrnd.tmforce.nff.assignment.auto.service.AutoAssignService;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -19,7 +19,7 @@ public class AutoAssignDaemon {
         autoAssignService = new AutoAssignService();
     }
 
-    public void startMatrixService() {
+    public void startAutoAssignService() {
         new Thread(() -> {
             autoAssignService.start();
 
