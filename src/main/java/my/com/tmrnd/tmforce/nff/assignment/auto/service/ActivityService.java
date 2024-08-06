@@ -16,6 +16,7 @@ import my.com.tmrnd.tmforce.common.db.entity.AtTicket;
 import my.com.tmrnd.tmforce.common.db.entity.CoArea;
 import my.com.tmrnd.tmforce.common.db.entity.CoListofvalue;
 import my.com.tmrnd.tmforce.common.db.entity.CoResources;
+import static my.com.tmrnd.tmforce.nff.assignment.AssignmentConstant.ACTIVITY_STATUS.PENDING_ACCEPT;
 import static my.com.tmrnd.tmforce.nff.assignment.AssignmentConstant.ACTIVITY_STATUS.PENDING_ASSIGN;
 import my.com.tmrnd.tmforce.nff.assignment.AssignmentSingleton;
 import my.com.tmrnd.tmforce.nff.assignment.db.DatabaseService;
@@ -42,6 +43,10 @@ public class ActivityService {
         log.info("Assigning activity..");
         AtTicket atTicket = atActivity.getTicketId();
         String activityId = atActivity.getActivityId();
+        String status = atActivity.getActivityStatus().getLovValue();
+        
+        boolean isReassign = PENDING_ACCEPT.equals(status) && atActivity.getAssignTo() != null;
+        log.info("isReassign="+isReassign);
 
         DistanceService distanceService = new DistanceService(activityId);
 
@@ -56,6 +61,7 @@ public class ActivityService {
         Date time = isAppointment ? plannedStart : new Date();
 
         boolean isOfficeHour = time.after(startWorkingHour) && time.before(endWorkingHour);
+        
 
         boolean useDistance = distanceService.isTicketCoordinateOk(atTicket);
 
@@ -71,15 +77,16 @@ public class ActivityService {
         List<Candidate> candidateList = new ArrayList<>();
 
         for (CoResources coResources : resourceList) {
-            boolean isWorking = isAppointment && databaseService.checkResourceIsWorking(coResources.getIcNo(), plannedStart, plannedEnd);
-            isWorking = isWorking || (!isAppointment && databaseService.checkResourceIsWorking(coResources.getIcNo(), time, endWorkingHour));
-
-            if (isWorking) {
+            String icNo =  coResources.getIcNo();
+            boolean isWorking = isAppointment && databaseService.checkResourceIsWorking(icNo, plannedStart, plannedEnd);
+            isWorking = isWorking || (!isAppointment && databaseService.checkResourceIsWorking(icNo, time, endWorkingHour));
+            boolean isQualify = (!isReassign && isWorking) || (isReassign && isWorking && !icNo.equals(atActivity.getAssignTo().getIcNo()));
+            if (isQualify) {
                 Candidate candidate = new Candidate();
                 candidate.setCoResources(coResources);
-                Integer inHand = databaseService.getInHand(coResources.getIcNo());
+                Integer inHand = databaseService.getInHand(icNo);
                 candidate.setInHandCount(inHand);
-                Integer yesterdayInHand = databaseService.getYesterdayInHand(coResources.getIcNo());
+                Integer yesterdayInHand = databaseService.getYesterdayInHand(icNo);
                 candidate.setYesterdayInHandCount(yesterdayInHand);
 
                 if (useDistance) {
@@ -88,8 +95,10 @@ public class ActivityService {
                 }
                 log.info("{} added", candidate);
                 candidateList.add(candidate);
-            } else {
-                log.info("{} is on leave");
+            } else if(isWorking){
+                log.info("{} is on leave",icNo);
+            }else{
+                log.info("{} is not qualify",icNo);
             }
         }
 

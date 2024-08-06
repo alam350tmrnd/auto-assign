@@ -51,7 +51,7 @@ public class ActivityServiceTest extends FacadeTest{
     @Test
     public void testAssignActivity() {
         System.out.println("assignActivity");
-        String activityId = "A-0000004525";
+        String activityId = "A-0000007882";
         DatabaseService databaseService = new DatabaseService(getSessionFactory());
         DatabaseService.setDatabaseService(databaseService);
         AutoAssignService autoAssignService = new AutoAssignService();
@@ -66,7 +66,7 @@ public class ActivityServiceTest extends FacadeTest{
         CoArea zone = new CoArea(BigDecimal.ZERO);
         ActivityService instance = new ActivityService(databaseService, zone, activityId);
         instance.assignActivity(atActivity);
-        getSession().getTransaction().commit();
+        //getSession().getTransaction().commit();
     }
 
     /**
