@@ -20,6 +20,7 @@ import static my.com.tmrnd.tmforce.nff.assignment.AssignmentConstant.ACTIVITY_ST
 import static my.com.tmrnd.tmforce.nff.assignment.AssignmentConstant.ACTIVITY_STATUS.PENDING_ASSIGN;
 import my.com.tmrnd.tmforce.nff.assignment.AssignmentSingleton;
 import my.com.tmrnd.tmforce.nff.assignment.db.DatabaseService;
+import my.com.tmrnd.tmforce.nff.assignment.util.TimeUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,28 +45,42 @@ public class ActivityService {
         AtTicket atTicket = atActivity.getTicketId();
         String activityId = atActivity.getActivityId();
         String status = atActivity.getActivityStatus().getLovValue();
-        
+
         boolean isReassign = PENDING_ACCEPT.equals(status) && atActivity.getAssignTo() != null;
-        log.info("isReassign="+isReassign);
+        log.info("isReassign=" + isReassign);
 
         DistanceService distanceService = new DistanceService(activityId);
 
-        boolean isAppointment = atActivity.getPlannedStart() != null;
+        Date startWorkingHour = null;
+        Date endWorkingHour = null;
+        Date tonight = null;
+        if (AssignmentSingleton.getWorkStartTime() == null || AssignmentSingleton.getWorkEndTime() == null) {
+            log.error("error WorkStartTime/WorkEndTime not set. assignment aborted");
+            return;
+        }
+        try {
+            tonight = TimeUtil.getTodaysTime("23:59:59");
+            startWorkingHour = TimeUtil.getTodaysTime(AssignmentSingleton.getWorkStartTime() + ":00");
+            endWorkingHour = TimeUtil.getTodaysTime(AssignmentSingleton.getWorkEndTime() + ":00");
+            String pattern = "dd/MM/yyyy HH:mm:ss";
+            log.info("tonight={}, startWorkingHour={}, endWorkingHour={}",
+                    TimeUtil.getTimeString(tonight, pattern),
+                    TimeUtil.getTimeString(startWorkingHour, pattern),
+                    TimeUtil.getTimeString(endWorkingHour, pattern));
+        } catch (Exception ex) {
+            log.error("error converting date. assignment aborted", ex);
+            return;
+        }
 
-        Date startWorkingHour = AssignmentSingleton.getStartWorkingHour();
-        Date endWorkingHour = AssignmentSingleton.getEndWorkingHour();
+        Date plannedStart = atActivity.getPlannedStart() == null ? new Date() : atActivity.getPlannedStart();
 
-        Date plannedStart = atActivity.getPlannedStart();
-        Date plannedEnd = atActivity.getPlannedEnd();
+        boolean isOnOfficeHour = plannedStart.after(startWorkingHour) && plannedStart.before(endWorkingHour);
 
-        Date time = isAppointment ? plannedStart : new Date();
-
-        boolean isOfficeHour = time.after(startWorkingHour) && time.before(endWorkingHour);
-        
+        Date plannedEnd = isOnOfficeHour ? endWorkingHour : tonight;
 
         boolean useDistance = distanceService.isTicketCoordinateOk(atTicket);
 
-        List<CoResources> resourceList = isOfficeHour ? databaseService.getNormalResourceList(activityId) : databaseService.getStandbyResourceList(activityId);
+        List<CoResources> resourceList = isOnOfficeHour ? databaseService.getNormalResourceList(activityId) : databaseService.getStandbyResourceList(activityId);
 
         if (resourceList == null || resourceList.isEmpty()) {
             log.info("no resources found");
@@ -77,10 +92,13 @@ public class ActivityService {
         List<Candidate> candidateList = new ArrayList<>();
 
         for (CoResources coResources : resourceList) {
-            String icNo =  coResources.getIcNo();
-            boolean isWorking = isAppointment && databaseService.checkResourceIsWorking(icNo, plannedStart, plannedEnd);
-            isWorking = isWorking || (!isAppointment && databaseService.checkResourceIsWorking(icNo, time, endWorkingHour));
-            boolean isQualify = (!isReassign && isWorking) || (isReassign && isWorking && !icNo.equals(atActivity.getAssignTo().getIcNo()));
+            String icNo = coResources.getIcNo();
+            String icNoStaffNo = getStaffNoIcNo(coResources);
+
+            boolean isWorking = databaseService.checkResourceIsWorking(icNo, plannedStart, plannedEnd);
+            boolean isSamePerson = isReassign && icNo.equals(atActivity.getAssignTo().getIcNo());
+            boolean isQualify = (!isReassign && isWorking) || (isReassign && isWorking && !isSamePerson);
+            
             if (isQualify) {
                 Candidate candidate = new Candidate();
                 candidate.setCoResources(coResources);
@@ -93,13 +111,27 @@ public class ActivityService {
                     Double distance = distanceService.getDistance(coResources, atTicket);
                     candidate.setDistance(distance);
                 }
-                log.info("{} added", candidate);
+                log.info("{} - {} added", icNoStaffNo, candidate);
                 candidateList.add(candidate);
-            } else if(isWorking){
-                log.info("{} is on leave",icNo);
-            }else{
-                log.info("{} is not qualify",icNo);
+            } else if (!isWorking) {
+                log.info("{} is on leave", icNoStaffNo);
+            } else if (isSamePerson) {
+                log.info("{} is same person", icNoStaffNo);
+            } 
+            else {
+                log.info("{} is not qualify", icNoStaffNo);
             }
+        }
+        
+        if(candidateList.isEmpty()){
+            log.info("candidateList is empty");
+            return;
+        }
+
+        if (candidateList.size() == 1) {
+            CoResources coResources = candidateList.get(0).getCoResources();
+            assignResource(atActivity, coResources, "P0. Only");
+            return;
         }
 
         CandidateSorter sorter = new CandidateSorter();
@@ -108,7 +140,7 @@ public class ActivityService {
 
         if (candidateList.size() == 1) {
             CoResources coResources = candidateList.get(0).getCoResources();
-            assignResource(atActivity, coResources);
+            assignResource(atActivity, coResources, "P1. Least in Hand");
             return;
         }
 
@@ -116,7 +148,7 @@ public class ActivityService {
 
         if (candidateList.size() == 1) {
             CoResources coResources = candidateList.get(0).getCoResources();
-            assignResource(atActivity, coResources);
+            assignResource(atActivity, coResources, "P2. Least Yesterday Count");
             return;
         }
 
@@ -124,25 +156,15 @@ public class ActivityService {
 
         if (candidateList.size() == 1) {
             CoResources coResources = candidateList.get(0).getCoResources();
-            assignResource(atActivity, coResources);
+            assignResource(atActivity, coResources, "P3. Least Distance");
             return;
         }
 
         Collections.shuffle(candidateList, new Random());
 
         CoResources coResources = candidateList.get(0).getCoResources();
-        assignResource(atActivity, coResources);
+        assignResource(atActivity, coResources, "P4. Random");
 
-        //start-datetime = planned start else sysdate
-        //check start-datetime office hour
-        //select resoruce Normal
-        //eslse
-        //select resource Stanby
-        //remove cuti
-        //sort workload
-        //sort lesser pevious task
-        //not first task
-        //distance
     }
 
     public boolean processPendingAccept(AtActivity atActivity) {
@@ -160,16 +182,18 @@ public class ActivityService {
 
     }
 
-    public void assignResource(AtActivity atActivity, CoResources assignTo) {
-        log.info("assignResource({})", assignTo.getIcNo());
+    public void assignResource(AtActivity atActivity, CoResources assignTo, String method) {
+        String staffNoIcNo = getStaffNoIcNo(assignTo);
+        log.info("assignResource({}, {})", staffNoIcNo, method);
         String activityId = atActivity.getActivityId();
         String ticketId = atActivity.getTicketId().getTicketId();
         String staffNo = assignTo.getStaffNo();
 
         CoListofvalue oldActivityStatusLov = atActivity.getActivityStatus();
         String oldActivityStatus = oldActivityStatusLov.getLovName();
+        log.debug("oldActivityStatus=" + oldActivityStatus);
         BigDecimal pendingAcceptLovId = AssignmentSingleton.getLovIdPendingAccept();
-        CoListofvalue pendingAcceptActivityStatus = databaseService.getCoListofvalue(pendingAcceptLovId);
+        CoListofvalue pendingAcceptActivityStatus = new CoListofvalue(pendingAcceptLovId);
         if (pendingAcceptActivityStatus == null) {
             log.error(activityId + " assignedActivityStatus LOV not found lovId : " + pendingAcceptLovId);
         }
@@ -180,9 +204,9 @@ public class ActivityService {
         AtStatusLog atStatusLog = new AtStatusLog();
 
         atStatusLog.setActivityId(activityId);
-        atStatusLog.setDescription("Auto Assign Accept Pending - " + staffNo);
+        atStatusLog.setDescription("Auto Assign Accept Pending for " + staffNo);
         atStatusLog.setLogDatetime(new Date());
-        atStatusLog.setNewStatus(pendingAcceptActivityStatus.getLovName());
+        atStatusLog.setNewStatus(PENDING_ACCEPT);
         atStatusLog.setOldStatus(oldActivityStatus);
         atStatusLog.setTicketId(ticketId);
         databaseService.insertAtStatusLog(atStatusLog);
@@ -190,7 +214,13 @@ public class ActivityService {
         databaseService.addPendingAcceptCount(atActivity, PENDING_ASSIGN.equals(oldActivityStatus));
         databaseService.updatePendingAcceptMaxed(atActivity, "FALSE");
         boolean isNotified = new AutoAssignMessagingService().sendTaskAcceptanceMessage(assignTo, atActivity);
-        log.info(activityId + " updated with status = " + pendingAcceptActivityStatus.getLovName());
+        log.info(activityId + " updated with status = " + PENDING_ACCEPT);
+    }
+
+    public String getStaffNoIcNo(CoResources coResources) {
+        String icNo = coResources.getIcNo();
+        String staffNo = coResources.getStaffNo();
+        return staffNo + "/" + icNo;
     }
 
 }

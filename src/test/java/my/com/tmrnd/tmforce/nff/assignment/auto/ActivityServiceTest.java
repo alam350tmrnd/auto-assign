@@ -66,7 +66,7 @@ public class ActivityServiceTest extends FacadeTest{
         CoArea zone = new CoArea(BigDecimal.ZERO);
         ActivityService instance = new ActivityService(databaseService, zone, activityId);
         instance.assignActivity(atActivity);
-        //getSession().getTransaction().commit();
+        getSession().getTransaction().commit();
     }
 
     /**
@@ -93,7 +93,8 @@ public class ActivityServiceTest extends FacadeTest{
         AtActivity atActivity = null;
         CoResources assignTo = null;
         ActivityService instance = null;
-        instance.assignResource(atActivity, assignTo);
+        String method = null;
+        instance.assignResource(atActivity, assignTo,method);
         // TODO review the generated test code and remove the default call to fail.
         fail("The test case is a prototype.");
     }

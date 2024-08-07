@@ -62,31 +62,41 @@ public class AutoAssignZoneService implements AutoZoneService {
         String unacceptInterval = AssignmentSingleton.getUnacceptInterval();
         String maxPendingAccept = AssignmentSingleton.getMaxPendingAccept();
 
-        List<AtActivity> activityList = databaseService.getNffCorrectiveActivityListByZoneId(zoneId, appointmentInterval, unacceptInterval, maxPendingAccept);
+        try {
+            List<AtActivity> activityList = databaseService.getNffCorrectiveActivityListByZoneId(zoneId, appointmentInterval, unacceptInterval, maxPendingAccept);
 
-        if (activityList != null && !activityList.isEmpty()) {
+            if (activityList != null && !activityList.isEmpty()) {
 
-            for (AtActivity atActivity : activityList) {
-                printActivity(atActivity);
-            }
-            log.info(":: activityList found = " + activityList.size());
-            
-            for (AtActivity atActivity : activityList) {
-
-                String activityId = atActivity.getActivityId();
-                ActivityService activityService = new ActivityService(databaseService, zone, activityId);
-
-                String status = atActivity.getActivityStatus().getLovValue();
-                printActivity(atActivity);
-                boolean assign = true;
-                if (PENDING_ACCEPT.equals(status)) {
-                    assign = activityService.processPendingAccept(atActivity);
+                for (AtActivity atActivity : activityList) {
+                    printActivity(atActivity);
                 }
-                if (assign) {
-                    activityService.assignActivity(atActivity);
+                log.info(":: activityList found = " + activityList.size());
+
+                for (AtActivity atActivity : activityList) {
+
+                    String activityId = atActivity.getActivityId();
+
+                    try {
+
+                        ActivityService activityService = new ActivityService(databaseService, zone, activityId);
+
+                        String status = atActivity.getActivityStatus().getLovValue();
+                        printActivity(atActivity);
+                        boolean assign = true;
+                        if (PENDING_ACCEPT.equals(status)) {
+                            assign = activityService.processPendingAccept(atActivity);
+                        }
+                        if (assign) {
+                            activityService.assignActivity(atActivity);
+                        }
+                    } catch (Exception e) {
+                        log.error("Exception processing activity " + activityId, e);
+                    }
                 }
+                activityList.clear();
             }
-            activityList.clear();
+        } catch (Exception e) {
+            log.error("Exception processing zone " + zoneName, e);
         }
 
         log.debug("done zone");
