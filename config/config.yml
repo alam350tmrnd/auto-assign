@@ -71,11 +71,11 @@ logging:
     - type: console
       target: stderr
       timeZone: Asia/Kuala_Lumpur
-      logFormat: "%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{5} [%thread] - %msg%n"
+      logFormat: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{5} - %msg%n"
     # Log to stderr/netbeans output  
     - type: file
-      currentLogFilename: /app/logs/auto-assignment.log
-      archivedLogFilenamePattern: /app/logs/auto-assignment-%d.log.gz
+      currentLogFilename: /app/logs/nff-auto-assignment.log
+      archivedLogFilenamePattern: /app/logs/nff-auto-assignment-%d.log.gz
       archivedFileCount: 15
       timeZone: Asia/Kuala_Lumpur
-      logFormat: "%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{5} [%thread] - %msg%n"
+      logFormat: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{5} - %msg%n"
