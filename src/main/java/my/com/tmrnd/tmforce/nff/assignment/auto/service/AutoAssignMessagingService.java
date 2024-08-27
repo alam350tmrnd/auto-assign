@@ -49,7 +49,6 @@ public class AutoAssignMessagingService extends MessagingService {
                 NotificationInfo notification = new NotificationInfo();
                 notification.setTitle("Task Acceptance");
                 notification.setBody(message.replace("${ticketId}", ticketId).replace("${staffNo}", staffNo));
-                //additionalInfoMap.put("Notification", notification);
 
                 NotificationInfo appNotification = new NotificationInfo();
                 appNotification.setSound("alarm");

@@ -117,13 +117,12 @@ public class ActivityService {
                 log.info("{} is on leave", icNoStaffNo);
             } else if (isSamePerson) {
                 log.info("{} is same person", icNoStaffNo);
-            } 
-            else {
+            } else {
                 log.info("{} is not qualify", icNoStaffNo);
             }
         }
-        
-        if(candidateList.isEmpty()){
+
+        if (candidateList.isEmpty()) {
             log.info("candidateList is empty");
             return;
         }
@@ -171,14 +170,16 @@ public class ActivityService {
         log.info("processPendingAccept");
         String maxPendingAccept = AssignmentSingleton.getMaxPendingAccept();
         String pendingAcceptCount = databaseService.getPendingAcceptCount(atActivity);
-        boolean assign = !maxPendingAccept.equals(pendingAcceptCount);
-        if (!assign) {
+        boolean maxed = maxPendingAccept.equals(pendingAcceptCount);
+        if (maxed) {
             databaseService.updatePendingAcceptMaxed(atActivity, "TRUE");
+        }else{
+            databaseService.addPendingAcceptCount(atActivity, false);
         }
-        log.info("pending accept count = {},assign = {}", pendingAcceptCount + "/" + maxPendingAccept, assign);
-
+        log.info("pending accept count = {},assign = {}", pendingAcceptCount + "/" + maxPendingAccept, maxed);
+        
         new AutoAssignMessagingService().sendTaskUnAcceptedMessageToSupervisor(atActivity, pendingAcceptCount);
-        return assign;
+        return !maxed;
 
     }
 
@@ -211,7 +212,10 @@ public class ActivityService {
         atStatusLog.setTicketId(ticketId);
         databaseService.insertAtStatusLog(atStatusLog);
         databaseService.updatePendingAcceptDateTime(atActivity);
-        databaseService.addPendingAcceptCount(atActivity, PENDING_ASSIGN.equals(oldActivityStatus));
+        boolean isNew = PENDING_ASSIGN.equals(oldActivityStatus);
+        if (isNew) {
+            databaseService.addPendingAcceptCount(atActivity, isNew);
+        }
         databaseService.updatePendingAcceptMaxed(atActivity, "FALSE");
         boolean isNotified = new AutoAssignMessagingService().sendTaskAcceptanceMessage(assignTo, atActivity);
         log.info(activityId + " updated with status = " + PENDING_ACCEPT);
