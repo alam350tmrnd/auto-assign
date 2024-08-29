@@ -205,7 +205,7 @@ public class ActivityService {
         AtStatusLog atStatusLog = new AtStatusLog();
 
         atStatusLog.setActivityId(activityId);
-        atStatusLog.setDescription("Auto Assign Accept Pending for " + staffNo);
+        atStatusLog.setDescription("Auto Assign to " + staffNo+", "+method);
         atStatusLog.setLogDatetime(new Date());
         atStatusLog.setNewStatus(PENDING_ACCEPT);
         atStatusLog.setOldStatus(oldActivityStatus);
