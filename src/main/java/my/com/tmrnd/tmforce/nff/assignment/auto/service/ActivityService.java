@@ -134,20 +134,20 @@ public class ActivityService {
         }
 
         CandidateSorter sorter = new CandidateSorter();
+        
+        candidateList = sorter.getLeastYesterdayCountList(candidateList);
+
+        if (candidateList.size() == 1) {
+            CoResources coResources = candidateList.get(0).getCoResources();
+            assignResource(atActivity, coResources, "P5. Least Yesterday Count");
+            return;
+        }
 
         candidateList = sorter.getLeastInHandCountList(candidateList);
 
         if (candidateList.size() == 1) {
             CoResources coResources = candidateList.get(0).getCoResources();
-            assignResource(atActivity, coResources, "P1. Least in Hand");
-            return;
-        }
-
-        candidateList = sorter.getLeastYesterdayCountList(candidateList);
-
-        if (candidateList.size() == 1) {
-            CoResources coResources = candidateList.get(0).getCoResources();
-            assignResource(atActivity, coResources, "P2. Least Yesterday Count");
+            assignResource(atActivity, coResources, "P6. Least in Hand");
             return;
         }
 
@@ -155,14 +155,14 @@ public class ActivityService {
 
         if (candidateList.size() == 1) {
             CoResources coResources = candidateList.get(0).getCoResources();
-            assignResource(atActivity, coResources, "P3. Least Distance");
+            assignResource(atActivity, coResources, "P7. Least Distance");
             return;
         }
 
         Collections.shuffle(candidateList, new Random());
 
         CoResources coResources = candidateList.get(0).getCoResources();
-        assignResource(atActivity, coResources, "P4. Random");
+        assignResource(atActivity, coResources, "P8. Random");
 
     }
 
