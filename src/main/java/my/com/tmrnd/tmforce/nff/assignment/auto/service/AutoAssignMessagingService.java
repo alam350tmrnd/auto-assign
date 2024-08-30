@@ -26,7 +26,7 @@ public class AutoAssignMessagingService extends MessagingService {
 
     private final Logger log = LoggerFactory.getLogger(getClass().getName());
 
-    public boolean sendTaskAcceptanceMessage(CoResources coResources, AtActivity atActivity) {
+    public boolean sendTaskAcceptanceMessageUnlogged(CoResources coResources, AtActivity atActivity) {
         boolean result = false;
 
         String eventName = "task-accept";
@@ -53,9 +53,8 @@ public class AutoAssignMessagingService extends MessagingService {
                 NotificationInfo appNotification = new NotificationInfo();
                 appNotification.setSound("alarm");
                 additionalInfoMap.put("appNotification", appNotification);
-
                 result = mobilePusherClient.push(eventName, tokenId, additionalInfoMap, notification);
-                log.debug(activityId + " Task Acceptancet notification sent to : " + icNo);
+
             } else {
                 log.info(activityId + "|" + icNo + " UpdateMobilePusher: Token Id is null");
                 return false;
@@ -63,6 +62,18 @@ public class AutoAssignMessagingService extends MessagingService {
         } catch (Exception e) {
             log.error(activityId + " error sendTaskAcceptanceMessage", e);
         }
+        return result;
+    }
+
+    public boolean sendTaskAcceptanceMessage(CoResources coResources, AtActivity atActivity) {
+        String icNo = coResources.getIcNo();
+        
+        String staffNo = coResources.getStaffNo();
+        boolean result = sendTaskAcceptanceMessageUnlogged(coResources, atActivity);
+        String status = (result ? "Success" : "Failed");
+        String logMsg = status + ": Sending Task Acceptance notification to FE : " + staffNo;
+        insertMessagingStatusLog(atActivity, icNo, logMsg);
+
         return result;
     }
 
@@ -93,7 +104,11 @@ public class AutoAssignMessagingService extends MessagingService {
                     String message = messageTemplate.replace("${ticketId}", ticketId)
                             .replace("${staffNo}", staffNo)
                             .replace("${pendingAcceptCount}", pendingAcceptCount);
-                    sendMessage(supervisor, "task-unaccepted", "Task UnAccepted", message);
+
+                    String status = (sendMessage(supervisor, "task-unaccepted", "Task UnAccepted", message) ? "Success" : "Failed");
+                    String logMsg = status + ": Sending Un-accepted Task by "+staffNo+" notification to supervisor : " + supervisor.getStaffNo();
+                    insertMessagingStatusLog(atActivity, icNo, logMsg);
+                    log.info(logMsg);
                 }
 
             }
@@ -104,6 +119,5 @@ public class AutoAssignMessagingService extends MessagingService {
 
         return true;
     }
-
 
 }
