@@ -129,7 +129,7 @@ public class ActivityService {
 
         if (candidateList.size() == 1) {
             CoResources coResources = candidateList.get(0).getCoResources();
-            assignResource(atActivity, coResources, "P0. Only");
+            assignResource(atActivity, coResources, "P0. The only candidate");
             return;
         }
 
