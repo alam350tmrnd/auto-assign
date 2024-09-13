@@ -42,14 +42,8 @@ public class ActivityService {
 
     public void assignActivity(AtActivity atActivity) {
         log.info("Assigning activity..");
-        AtTicket atTicket = atActivity.getTicketId();
+
         String activityId = atActivity.getActivityId();
-        String status = atActivity.getActivityStatus().getLovValue();
-
-        boolean isReassign = PENDING_ACCEPT.equals(status) && atActivity.getAssignTo() != null;
-        log.info("isReassign=" + isReassign);
-
-        DistanceService distanceService = new DistanceService(activityId);
 
         Date startWorkingHour = null;
         Date endWorkingHour = null;
@@ -78,48 +72,27 @@ public class ActivityService {
 
         Date plannedEnd = isOnOfficeHour ? endWorkingHour : tonight;
 
-        boolean useDistance = distanceService.isTicketCoordinateOk(atTicket);
-
-        List<CoResources> resourceList = isOnOfficeHour ? databaseService.getNormalResourceList(activityId) : databaseService.getStandbyResourceList(activityId);
-
-        if (resourceList == null || resourceList.isEmpty()) {
-            log.info("no resources found");
+        List<CoResources> standbyResourceList = databaseService.getStandbyResourceList(activityId);
+        if (standbyResourceList == null) {
             return;
         } else {
-            log.info("{} resources found", resourceList.size());
+            log.info("standbyResourceList = {}", standbyResourceList.size());
         }
 
         List<Candidate> candidateList = new ArrayList<>();
 
-        for (CoResources coResources : resourceList) {
-            String icNo = coResources.getIcNo();
-            String icNoStaffNo = getStaffNoIcNo(coResources);
+        List<Candidate> standbyCandidateList = getCandidateList(standbyResourceList, atActivity, plannedStart, plannedEnd, Candidate.SHIFT_STANDBY);
+        candidateList.addAll(standbyCandidateList);
 
-            boolean isWorking = databaseService.checkResourceIsWorking(icNo, plannedStart, plannedEnd);
-            boolean isSamePerson = isReassign && icNo.equals(atActivity.getAssignTo().getIcNo());
-            boolean isQualify = (!isReassign && isWorking) || (isReassign && isWorking && !isSamePerson);
-            
-            if (isQualify) {
-                Candidate candidate = new Candidate();
-                candidate.setCoResources(coResources);
-                Integer inHand = databaseService.getInHand(icNo);
-                candidate.setInHandCount(inHand);
-                Integer yesterdayInHand = databaseService.getYesterdayInHand(icNo);
-                candidate.setYesterdayInHandCount(yesterdayInHand);
-
-                if (useDistance) {
-                    Double distance = distanceService.getDistance(coResources, atTicket);
-                    candidate.setDistance(distance);
-                }
-                log.info("{} - {} added", icNoStaffNo, candidate);
-                candidateList.add(candidate);
-            } else if (!isWorking) {
-                log.info("{} is on leave", icNoStaffNo);
-            } else if (isSamePerson) {
-                log.info("{} is same person", icNoStaffNo);
+        if (isOnOfficeHour) {
+            List<CoResources> normalResourceList = databaseService.getNormalResourceList(activityId);
+            if (normalResourceList == null) {
+                return;
             } else {
-                log.info("{} is not qualify", icNoStaffNo);
+                log.info("standbyResourceList = {}", normalResourceList.size());
             }
+            List<Candidate> normalCandidateList = getCandidateList(normalResourceList, atActivity, plannedStart, plannedEnd, Candidate.SHIFT_NORMAL);
+            candidateList.addAll(normalCandidateList);
         }
 
         if (candidateList.isEmpty()) {
@@ -134,7 +107,7 @@ public class ActivityService {
         }
 
         CandidateSorter sorter = new CandidateSorter();
-        
+
         candidateList = sorter.getLeastYesterdayCountList(candidateList);
 
         if (candidateList.size() == 1) {
@@ -149,6 +122,31 @@ public class ActivityService {
             CoResources coResources = candidateList.get(0).getCoResources();
             assignResource(atActivity, coResources, "P6. Least in Hand");
             return;
+        }
+
+        if (isOnOfficeHour) {
+
+            List<Candidate> filteredStandbyCandidateList = new ArrayList<>();
+
+            for (Candidate candidate : candidateList) {
+                if (Candidate.SHIFT_STANDBY.equals(candidate.getShift())) {
+                    filteredStandbyCandidateList.add(candidate);
+                    log.debug("{} added in filteredStandbyCandidateList", candidate.getCoResources().getStaffNo());
+                }
+            }
+
+            if (!filteredStandbyCandidateList.isEmpty()) {
+                candidateList.clear();
+                candidateList.addAll(filteredStandbyCandidateList);
+
+                if (candidateList.size() == 1) {
+                    CoResources coResources = candidateList.get(0).getCoResources();
+                    assignResource(atActivity, coResources, "P4. Standby Least in Hand");
+                    return;
+                }
+
+            }
+
         }
 
         candidateList = sorter.getLeastDistanceList(candidateList);
@@ -166,6 +164,55 @@ public class ActivityService {
 
     }
 
+    List<Candidate> getCandidateList(List<CoResources> resourceList, AtActivity atActivity, Date plannedStart, Date plannedEnd, String shift) {
+
+        String status = atActivity.getActivityStatus().getLovValue();
+        AtTicket atTicket = atActivity.getTicketId();
+
+        boolean isReassign = PENDING_ACCEPT.equals(status) && atActivity.getAssignTo() != null;
+        log.info("isReassign=" + isReassign);
+
+        DistanceService distanceService = new DistanceService(activityId);
+        boolean useDistance = distanceService.isTicketCoordinateOk(atTicket);
+
+        List<Candidate> candidateList = new ArrayList<>();
+
+        for (CoResources coResources : resourceList) {
+            String icNo = coResources.getIcNo();
+            String icNoStaffNo = getStaffNoIcNo(coResources);
+
+            boolean isWorking = databaseService.checkResourceIsWorking(icNo, plannedStart, plannedEnd);
+            boolean isSamePerson = isReassign && icNo.equals(atActivity.getAssignTo().getIcNo());
+            boolean isQualify = (!isReassign && isWorking) || (isReassign && isWorking && !isSamePerson);
+
+            if (isQualify) {
+                Candidate candidate = new Candidate();
+                candidate.setCoResources(coResources);
+                Integer inHand = databaseService.getInHand(icNo);
+                candidate.setInHandCount(inHand);
+                Integer yesterdayInHand = databaseService.getYesterdayInHand(icNo);
+                candidate.setYesterdayInHandCount(yesterdayInHand);
+
+                if (useDistance) {
+                    Double distance = distanceService.getDistance(coResources, atTicket);
+                    candidate.setDistance(distance);
+                }
+                candidate.setShift(shift);
+                candidateList.add(candidate);
+                log.info("{} - {} added", icNoStaffNo, candidate);
+            } else if (!isWorking) {
+                log.info("{} is on leave", icNoStaffNo);
+            } else if (isSamePerson) {
+                log.info("{} is same person", icNoStaffNo);
+            } else {
+                log.info("{} is not qualify", icNoStaffNo);
+            }
+        }
+
+        return candidateList;
+
+    }
+
     public boolean processPendingAccept(AtActivity atActivity) {
         log.info("processPendingAccept");
         String maxPendingAccept = AssignmentSingleton.getMaxPendingAccept();
@@ -173,11 +220,11 @@ public class ActivityService {
         boolean maxed = maxPendingAccept.equals(pendingAcceptCount);
         if (maxed) {
             databaseService.updatePendingAcceptMaxed(atActivity, "TRUE");
-        }else{
+        } else {
             databaseService.addPendingAcceptCount(atActivity, false);
         }
         log.info("pending accept count = {},assign = {}", pendingAcceptCount + "/" + maxPendingAccept, maxed);
-        
+
         new AutoAssignMessagingService().sendTaskUnAcceptedMessageToSupervisor(atActivity, pendingAcceptCount);
         return !maxed;
 
@@ -205,7 +252,7 @@ public class ActivityService {
         AtStatusLog atStatusLog = new AtStatusLog();
 
         atStatusLog.setActivityId(activityId);
-        atStatusLog.setDescription("Auto Assign to " + staffNo+", "+method);
+        atStatusLog.setDescription("Auto Assign to " + staffNo + ", " + method);
         atStatusLog.setLogDatetime(new Date());
         atStatusLog.setNewStatus(PENDING_ACCEPT);
         atStatusLog.setOldStatus(oldActivityStatus);
