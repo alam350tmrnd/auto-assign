@@ -72,7 +72,7 @@ public class ActivityService {
 
         Date plannedEnd = isOnOfficeHour ? endWorkingHour : tonight;
 
-        List<CoResources> standbyResourceList = databaseService.getStandbyResourceList(activityId);
+        List<CoResources> standbyResourceList = databaseService.getStandbyResourceList(activityId,isOnOfficeHour);
         if (standbyResourceList == null) {
             return;
         } else {
