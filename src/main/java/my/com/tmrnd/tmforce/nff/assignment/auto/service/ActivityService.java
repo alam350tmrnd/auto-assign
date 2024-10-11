@@ -89,7 +89,7 @@ public class ActivityService {
             if (normalResourceList == null) {
                 return;
             } else {
-                log.info("standbyResourceList = {}", normalResourceList.size());
+                log.info("normalResourceList = {}", normalResourceList.size());
             }
             List<Candidate> normalCandidateList = getCandidateList(normalResourceList, atActivity, plannedStart, plannedEnd, Candidate.SHIFT_NORMAL);
             candidateList.addAll(normalCandidateList);
