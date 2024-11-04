@@ -53,6 +53,7 @@ public class AutoAssignMessagingService extends MessagingService {
                 NotificationInfo appNotification = new NotificationInfo();
                 appNotification.setSound("alarm");
                 additionalInfoMap.put("appNotification", appNotification);
+                additionalInfoMap.put("expireAfter", "900");
                 result = mobilePusherClient.push(eventName, tokenId, additionalInfoMap, notification);
 
             } else {
