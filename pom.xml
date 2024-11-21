@@ -81,7 +81,7 @@
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>tmforce-common-api</artifactId>
-            <version>1.46.0</version>
+            <version>1.48.0-NFF-SNAPSHOT</version>
         </dependency>
     </dependencies>
     <build>

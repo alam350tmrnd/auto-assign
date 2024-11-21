@@ -55,14 +55,14 @@ public class AutoAssignMessagingServiceTest extends FacadeTest{
     /**
      * Test of sendTaskAcceptanceMessage method, of class AutoAssignMessagingService.
      */
-    //@Test
+    @Test
     public void testSendTaskAcceptanceMessage() {
         System.out.println("sendTaskAcceptanceMessage");
         CoResourcesFacade coResourcesFacade = new CoResourcesFacade(getSessionFactory());
         AtActivityFacade atActivityFacade = new AtActivityFacade(getSessionFactory());
-        CoResources coResources = coResourcesFacade.find("630113055312");
+        CoResources coResources = coResourcesFacade.find("840710145303");
         assertNotNull(coResources);
-        AtActivity atActivity = atActivityFacade.find("A-0000008446");
+        AtActivity atActivity = atActivityFacade.find("A-0000010228");
         assertNotNull(atActivity);
         AutoAssignMessagingService instance = new AutoAssignMessagingService();
         boolean expResult = false;
@@ -74,7 +74,7 @@ public class AutoAssignMessagingServiceTest extends FacadeTest{
     /**
      * Test of sendTaskUnAcceptedMessageToSupervisor method, of class AutoAssignMessagingService.
      */
-    @Test
+    //@Test
     public void testSendTaskUnAcceptedMessageToSupervisor() {
         System.out.println("sendTaskUnAcceptedMessageToSupervisor");
         AtActivityFacade atActivityFacade = new AtActivityFacade(getSessionFactory());

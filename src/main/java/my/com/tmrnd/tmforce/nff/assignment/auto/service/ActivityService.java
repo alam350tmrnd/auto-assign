@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Random;
+import java.util.logging.Level;
 import my.com.tmrnd.tmforce.common.db.entity.AtActivity;
 import my.com.tmrnd.tmforce.common.db.entity.AtStatusLog;
 import my.com.tmrnd.tmforce.common.db.entity.AtTicket;
@@ -19,6 +20,7 @@ import my.com.tmrnd.tmforce.common.db.entity.CoResources;
 import static my.com.tmrnd.tmforce.nff.assignment.AssignmentConstant.ACTIVITY_STATUS.PENDING_ACCEPT;
 import static my.com.tmrnd.tmforce.nff.assignment.AssignmentConstant.ACTIVITY_STATUS.PENDING_ASSIGN;
 import my.com.tmrnd.tmforce.nff.assignment.AssignmentSingleton;
+import my.com.tmrnd.tmforce.nff.assignment.auto.outbound.UpdateNEXT;
 import my.com.tmrnd.tmforce.nff.assignment.db.DatabaseService;
 import my.com.tmrnd.tmforce.nff.assignment.util.TimeUtil;
 import org.slf4j.Logger;
@@ -72,7 +74,7 @@ public class ActivityService {
 
         Date plannedEnd = isOnOfficeHour ? endWorkingHour : tonight;
 
-        List<CoResources> standbyResourceList = databaseService.getStandbyResourceList(activityId,isOnOfficeHour);
+        List<CoResources> standbyResourceList = databaseService.getStandbyResourceList(activityId, isOnOfficeHour);
         if (standbyResourceList == null) {
             return;
         } else {
@@ -97,6 +99,13 @@ public class ActivityService {
 
         if (candidateList.isEmpty()) {
             log.info("candidateList is empty");
+            String status = atActivity.getActivityStatus().getLovValue();
+
+            boolean isReassign = PENDING_ACCEPT.equals(status) && atActivity.getAssignTo() != null;
+            if(isReassign){
+                insertStatusLog(atActivity, PENDING_ACCEPT, PENDING_ACCEPT, "No Field Engineer found for re-assigment");
+            }
+
             return;
         }
 
@@ -218,16 +227,30 @@ public class ActivityService {
         String maxPendingAccept = AssignmentSingleton.getMaxPendingAccept();
         String pendingAcceptCount = databaseService.getPendingAcceptCount(atActivity);
         boolean maxed = maxPendingAccept.equals(pendingAcceptCount);
+        log.info("pending accept count = {},assign = {}", pendingAcceptCount + "/" + maxPendingAccept, !maxed);
+        String note = null;
+        String staffNo = atActivity.getAssignTo() != null ? atActivity.getAssignTo().getStaffNo() : null;
+
         if (maxed) {
+            note = "Failed accept by " + staffNo + " and require supervisor manual assigment";
             databaseService.updatePendingAcceptMaxed(atActivity, "TRUE");
+            new AutoAssignMessagingService().sendLastTaskUnAcceptedMessageToSupervisor(atActivity, pendingAcceptCount);
         } else {
+            note = "Failed accept by " + staffNo;
             databaseService.addPendingAcceptCount(atActivity, false);
+            new AutoAssignMessagingService().sendTaskUnAcceptedMessageToSupervisor(atActivity, pendingAcceptCount);
         }
-        log.info("pending accept count = {},assign = {}", pendingAcceptCount + "/" + maxPendingAccept, maxed);
 
-        new AutoAssignMessagingService().sendTaskUnAcceptedMessageToSupervisor(atActivity, pendingAcceptCount);
+        insertStatusLog(atActivity, PENDING_ACCEPT, PENDING_ACCEPT, note);
+        log.info("Updating NEXT ... " + note);
+        try {
+
+            new UpdateNEXT(databaseService).performUpdateNEXT(atActivity, note);
+        } catch (Exception ex) {
+            log.error("error UpdateNEXT", ex);
+        }
+
         return !maxed;
-
     }
 
     public void assignResource(AtActivity atActivity, CoResources assignTo, String method) {
@@ -249,21 +272,15 @@ public class ActivityService {
         atActivity.setActivityStatus(pendingAcceptActivityStatus);
         databaseService.updateActivity(atActivity);
 
-        AtStatusLog atStatusLog = new AtStatusLog();
+        insertStatusLog(atActivity, oldActivityStatus, PENDING_ACCEPT, "Auto Assign to " + staffNo + ", " + method);
 
-        atStatusLog.setActivityId(activityId);
-        atStatusLog.setDescription("Auto Assign to " + staffNo + ", " + method);
-        atStatusLog.setLogDatetime(new Date());
-        atStatusLog.setNewStatus(PENDING_ACCEPT);
-        atStatusLog.setOldStatus(oldActivityStatus);
-        atStatusLog.setTicketId(ticketId);
-        databaseService.insertAtStatusLog(atStatusLog);
         databaseService.updatePendingAcceptDateTime(atActivity);
         boolean isNew = PENDING_ASSIGN.equals(oldActivityStatus);
-        if (isNew) {
-            databaseService.addPendingAcceptCount(atActivity, isNew);
-        }
+
+        databaseService.addPendingAcceptCount(atActivity, isNew);
         databaseService.updatePendingAcceptMaxed(atActivity, "FALSE");
+        updateNextOnAssign(atActivity);
+
         boolean isNotified = new AutoAssignMessagingService().sendTaskAcceptanceMessage(assignTo, atActivity);
         log.info(activityId + " updated with status = " + PENDING_ACCEPT);
     }
@@ -272,6 +289,63 @@ public class ActivityService {
         String icNo = coResources.getIcNo();
         String staffNo = coResources.getStaffNo();
         return staffNo + "/" + icNo;
+    }
+
+    public void updateNextOnAssign(AtActivity atActivity) {
+        log.info("Updating NEXT ... ");
+        try {
+            String pendingAcceptCount = getOrdinal(databaseService.getPendingAcceptCount(atActivity));
+            String nextNote = pendingAcceptCount + " auto assignment";
+
+            new UpdateNEXT(databaseService).performUpdateNEXT(atActivity, nextNote);
+        } catch (Exception ex) {
+            log.error("error UpdateNEXT", ex);
+        }
+
+    }
+
+    public static String getOrdinal(String numberStr) {
+        try {
+            int number = Integer.parseInt(numberStr);
+
+            if (number <= 0) {
+                return "Invalid input";
+            }
+
+            int lastTwoDigits = number % 100;
+            int lastDigit = number % 10;
+
+            if (lastTwoDigits >= 11 && lastTwoDigits <= 13) {
+                return number + "th";
+            }
+
+            switch (lastDigit) {
+                case 1:
+                    return number + "st";
+                case 2:
+                    return number + "nd";
+                case 3:
+                    return number + "rd";
+                default:
+                    return number + "th";
+            }
+        } catch (NumberFormatException e) {
+            return "n/a";
+        }
+    }
+
+    public void insertStatusLog(AtActivity atActivity, String oldStatus, String newStatus, String description) {
+
+        String activityId = atActivity.getActivityId();
+        String ticketId = atActivity.getTicketId().getTicketId();
+        AtStatusLog atStatusLog = new AtStatusLog();
+        atStatusLog.setActivityId(activityId);
+        atStatusLog.setDescription(description);
+        atStatusLog.setLogDatetime(new Date());
+        atStatusLog.setNewStatus(newStatus);
+        atStatusLog.setOldStatus(oldStatus);
+        atStatusLog.setTicketId(ticketId);
+        databaseService.insertAtStatusLog(atStatusLog);
     }
 
 }

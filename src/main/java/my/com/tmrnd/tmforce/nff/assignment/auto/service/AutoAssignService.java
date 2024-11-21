@@ -24,7 +24,9 @@ public class AutoAssignService extends AutoService {
     public boolean setSingletonConfig() {
         log.debug("load AutoAssign SingletonConfig");
         boolean isCommonOk = super.setSingletonConfig();
-        AssignmentSingleton.setNotificationLevelList(new MessagingService().getNotificationLevelList("nff.failedaccept.notified.user.level"));
+        
+        AutoAssignMessagingService.failedAcceptLevelList = new MessagingService().getNotificationLevelList("nff.failedaccept.1st.notified.user.level");
+        AutoAssignMessagingService.lastFailedAcceptLevelList = new MessagingService().getNotificationLevelList("nff.failedaccept.2nd.notified.user.level");
         return isCommonOk;
     }
 

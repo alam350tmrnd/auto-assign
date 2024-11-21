@@ -23,6 +23,10 @@ import org.slf4j.LoggerFactory;
  * @author Alam
  */
 public class AutoAssignMessagingService extends MessagingService {
+    
+    public static List<NotificationLevel> failedAcceptLevelList;
+    public static List<NotificationLevel> lastFailedAcceptLevelList;
+    
 
     private final Logger log = LoggerFactory.getLogger(getClass().getName());
 
@@ -77,8 +81,18 @@ public class AutoAssignMessagingService extends MessagingService {
 
         return result;
     }
+    
+      public boolean sendTaskUnAcceptedMessageToSupervisor(AtActivity atActivity,String pendingAcceptCount){
+          log.info("sendTaskUnAcceptedMessageToSupervisor({})",atActivity.getActivityId());
+          return AutoAssignMessagingService.this.sendTaskUnAcceptedMessageToSupervisor(atActivity, failedAcceptLevelList,pendingAcceptCount);
+      }
+      
+      public boolean sendLastTaskUnAcceptedMessageToSupervisor(AtActivity atActivity,String pendingAcceptCount){
+          log.info("sendLastTaskUnAcceptedMessageToSupervisor({})",atActivity.getActivityId());
+          return AutoAssignMessagingService.this.sendTaskUnAcceptedMessageToSupervisor(atActivity, lastFailedAcceptLevelList, pendingAcceptCount);
+      }
 
-    public boolean sendTaskUnAcceptedMessageToSupervisor(AtActivity atActivity, String pendingAcceptCount) {
+    public boolean sendTaskUnAcceptedMessageToSupervisor(AtActivity atActivity, List<NotificationLevel> notificationLevelList,String pendingAcceptCount) {
         CoResources assignTo = atActivity.getAssignTo();
         String icNo = assignTo.getIcNo();
         String staffNo = assignTo.getStaffNo();
@@ -86,7 +100,6 @@ public class AutoAssignMessagingService extends MessagingService {
         String activityId = atActivity.getActivityId();
         String ticketId = atActivity.getTicketId().getTicketId();
 
-        List<NotificationLevel> notificationLevelList = AssignmentSingleton.getNotificationLevelList();
 
         if (notificationLevelList == null) {
             log.error("notificationLevelList is null. exit");
